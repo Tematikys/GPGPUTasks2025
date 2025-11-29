@@ -297,9 +297,13 @@ void run(int argc, char** argv)
         if (gpu_lbvg_gpu_rt_done) {
             std::vector<double> gpu_lbvh_times;
 
+            std::cout << "DEBUG 1" << std::endl;
+
             gpu::shared_device_buffer_typed<BVHNodeGPU> lbvh_nodes_gpu(2 * nfaces - 1);
             gpu::gpu_mem_32u leaf_faces_indices_gpu(nfaces);
             gpu::shared_device_buffer_typed<Prim> prims_gpu(nfaces);
+
+            std::cout << "DEBUG 2" << std::endl;
 
             std::vector<Prim> prims(nfaces);
             for (int iter = 0; iter < niters; ++iter) {
@@ -377,18 +381,23 @@ void run(int argc, char** argv)
                         prims[i].morton = morton3D(nx, ny, nz);
                     }
 
+                    std::cout << "DEBUG 2" << std::endl;
+
                     prims_gpu.writeN(prims.data(), prims.size());
+                    std::cout << "DEBUG 3" << std::endl;
                 }
                 { // Сортируем треугольники по коду Мортона используя merge sort
                     gpu::shared_device_buffer_typed<Prim> prims_buf_gpu(nfaces);
 
                     ocl_smallMergeSort.exec(gpu::WorkSize(GROUP_SIZE, nfaces), prims_gpu.clmem(), prims_buf_gpu.clmem(), nfaces);
                     prims_gpu.swap(prims_buf_gpu);
+                    std::cout << "DEBUG 4" << std::endl;
 
                     for (unsigned int i = PIVOT; (1u << (i - 1)) < nfaces; ++i) { 
                         ocl_mergeSort.exec(gpu::WorkSize(GROUP_SIZE, nfaces), prims_gpu.clmem(), prims_buf_gpu.clmem(), i, nfaces);
                         prims_gpu.swap(prims_buf_gpu);
                     }
+                    std::cout << "DEBUG 5" << std::endl;
 
                     /*
                     std::vector<Prim> prims(nfaces);
@@ -406,12 +415,14 @@ void run(int argc, char** argv)
                     leaf_faces_indices_gpu.clmem(),
                     prims_gpu.clmem(),
                     nfaces);
+                std::cout << "DEBUG 6" << std::endl;
 
                 for (unsigned int i = 0; i < 20; ++i) {
                     ocl_postBuildLBVH.exec(gpu::WorkSize(GROUP_SIZE, nfaces), 
                         lbvh_nodes_gpu.clmem(),
                         nfaces);
                 }
+                std::cout << "DEBUG 7" << std::endl;
 
                 gpu_lbvh_times.push_back(t.elapsed());
             }
@@ -430,12 +441,14 @@ void run(int argc, char** argv)
             for (int iter = 0; iter < niters; ++iter) {
                 timer t;
 
+                std::cout << "DEBUG 8" << std::endl;
                 ocl_rt_with_lbvh.exec(
                     gpu::WorkSize(16, 16, width, height),
                     vertices_gpu, faces_gpu,
                     lbvh_nodes_gpu.clmem(), leaf_faces_indices_gpu.clmem(),
                     framebuffer_face_id_gpu, framebuffer_ambient_occlusion_gpu,
                     camera_gpu.clmem(), nfaces);
+                std::cout << "DEBUG 9" << std::endl;
 
 
                 gpu_lbvh_rt_times.push_back(t.elapsed());
